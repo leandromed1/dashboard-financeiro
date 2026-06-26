@@ -1,0 +1,13 @@
+# NUNCA enviar a chave / segredos para a nuvem pública (GitHub)
+credenciais.json
+.streamlit/secrets.toml
+*.json.key
+
+# NUNCA enviar dados financeiros (a fonte é a planilha ao vivo)
+dados/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
