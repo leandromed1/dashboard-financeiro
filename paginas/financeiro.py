@@ -1,11 +1,16 @@
 """Página: Dashboard Financeiro Léo (aba [LANÇAMENTOS])."""
 
+import os
 import re
+import sys
 from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+
+# garante que a pasta raiz do projeto esteja no caminho de busca (p/ achar lib_comum)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib_comum import (
     real_br, valor_para_numero, norm, ler_valores, montar_df, proteger,
