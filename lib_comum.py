@@ -70,17 +70,23 @@ def _cliente():
     return gspread.authorize(creds)
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=300, show_spinner=False)
 def ler_valores(spreadsheet_id: str, aba: str):
-    """Lê todos os valores de uma aba. Retorna lista de linhas, ou um dict {erro:...}."""
+    """Lê todos os valores de uma aba ao vivo. Tenta algumas vezes (a API do Google
+    às vezes responde 502/503 temporário). Levanta erro se falhar — assim o cache
+    NÃO guarda a falha (cache_data não cacheia exceções)."""
+    import time
     cli = _cliente()
     if cli is None:
-        return {"erro": "sem credencial"}
-    try:
-        ws = cli.open_by_key(spreadsheet_id).worksheet(aba)
-        return ws.get_all_values()
-    except Exception as e:  # noqa: BLE001
-        return {"erro": str(e)}
+        raise RuntimeError("Credencial não configurada nos secrets.")
+    ultimo = None
+    for tentativa in range(3):
+        try:
+            return cli.open_by_key(spreadsheet_id).worksheet(aba).get_all_values()
+        except Exception as e:  # noqa: BLE001
+            ultimo = e
+            time.sleep(2)
+    raise RuntimeError(str(ultimo))
 
 
 def proteger(chave: str, titulo: str):

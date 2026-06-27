@@ -31,21 +31,17 @@ MAPA = {
 
 @st.cache_data(ttl=300)
 def carregar() -> pd.DataFrame:
-    valores = ler_valores(SPREADSHEET_ID, ABA)
-
-    if isinstance(valores, list):
+    try:
+        valores = ler_valores(SPREADSHEET_ID, ABA)
         df = montar_df(valores, MAPA, ["caixa", "valor"])
-    elif ARQUIVO_BACKUP.exists():
-        raw = pd.read_csv(ARQUIVO_BACKUP, dtype=str).fillna("")
-        df = raw  # backup já vem com as colunas certas
-        for nome in MAPA.values():
-            if nome not in df.columns:
-                df[nome] = ""
-    else:
-        st.error("Não consegui ler a planilha ao vivo. Verifique a credencial e o compartilhamento.")
-        if isinstance(valores, dict):
-            st.caption(f"Detalhe: {valores.get('erro')}")
-        st.stop()
+    except Exception:
+        if ARQUIVO_BACKUP.exists():       # fallback local (offline)
+            df = pd.read_csv(ARQUIVO_BACKUP, dtype=str).fillna("")
+            for nome in MAPA.values():
+                if nome not in df.columns:
+                    df[nome] = ""
+        else:
+            raise  # deixa o erro subir (não fica em cache); a página trata
 
     df = df.fillna("")
     # remove linhas vazias
@@ -71,10 +67,19 @@ def carregar() -> pd.DataFrame:
 
 proteger("financeiro", "📊 Financeiro Léo")
 
-df = carregar()
-
 st.title("💰 Dashboard Financeiro — Léo")
 st.caption("Fonte: aba [LANÇAMENTOS] · ano 2026")
+
+try:
+    df = carregar()
+except Exception as e:  # noqa: BLE001
+    st.error("Instabilidade ao ler a planilha ao vivo (servidor do Google). "
+             "Geralmente passa em alguns segundos.")
+    st.caption(f"Detalhe: {e}")
+    if st.button("🔄 Tentar de novo"):
+        st.cache_data.clear()
+        st.rerun()
+    st.stop()
 
 # ---- filtros ----
 st.sidebar.header("🔎 Filtros")

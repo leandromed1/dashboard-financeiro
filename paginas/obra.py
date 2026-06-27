@@ -33,10 +33,7 @@ MAPA_CAD = {
 
 @st.cache_data(ttl=300)
 def carregar():
-    valores = ler_valores(SPREADSHEET_ID, ABA)
-    if not isinstance(valores, list):
-        return None, (valores.get("erro") if isinstance(valores, dict) else "desconhecido")
-
+    valores = ler_valores(SPREADSHEET_ID, ABA)  # levanta erro se falhar (não cacheia falha)
     df = montar_df(valores, MAPA, ["descricao", "etapa", "total"]).fillna("")
     df = df[(df["descricao"].str.strip() != "") | (df["valor"].str.strip() != "")].copy()
 
@@ -50,15 +47,13 @@ def carregar():
     for c in ["categoria", "etapa", "fornecedor", "responsavel", "faturamento"]:
         df[c] = df[c].str.strip()
     df["fat_norm"] = df["faturamento"].apply(norm)
-    return df, None
+    return df
 
 
 @st.cache_data(ttl=300)
 def carregar_cadastro():
-    valores = ler_valores(SPREADSHEET_ID, ABA_CADASTRO)
-    if not isinstance(valores, list):
-        return {}
     try:
+        valores = ler_valores(SPREADSHEET_ID, ABA_CADASTRO)
         cad = montar_df(valores, MAPA_CAD, ["codigo obra", "total previsto"])
         linha = cad.iloc[0]
         return {
@@ -73,16 +68,18 @@ def carregar_cadastro():
 
 proteger("obra", "🏗️ Obra Apto DN")
 
-df, erro = carregar()
-
 st.title("🏗️ Dashboard da Obra — Apto DN")
 st.caption("Fonte: aba [LANÇAMENTOS] · planilha O.C CONSOLIDADO - APTO DN - 802")
 
-if df is None:
-    st.error("Não consegui ler a planilha da obra ao vivo.")
-    st.caption(f"Detalhe: {erro}")
-    st.info("Confirme que a planilha foi compartilhada (Leitor) com a conta de serviço "
-            "`dashboard-leitor@dashboard-financeiro-500618.iam.gserviceaccount.com`.")
+try:
+    df = carregar()
+except Exception as e:  # noqa: BLE001
+    st.error("Instabilidade ao ler a planilha da obra ao vivo (servidor do Google). "
+             "Geralmente passa em alguns segundos.")
+    st.caption(f"Detalhe: {e}")
+    if st.button("🔄 Tentar de novo"):
+        st.cache_data.clear()
+        st.rerun()
     st.stop()
 
 cad = carregar_cadastro()
