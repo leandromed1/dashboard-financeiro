@@ -83,6 +83,37 @@ def ler_valores(spreadsheet_id: str, aba: str):
         return {"erro": str(e)}
 
 
+def proteger(chave: str, titulo: str):
+    """Trava de senha por página. A senha fica em st.secrets['senhas'][chave].
+    Se não houver senha configurada para a página, o acesso fica liberado."""
+    try:
+        senhas = st.secrets.get("senhas", {})
+    except Exception:  # noqa: BLE001
+        senhas = {}
+    senha_certa = senhas.get(chave) if hasattr(senhas, "get") else None
+
+    if not senha_certa:
+        return  # sem senha configurada -> acesso liberado
+
+    if st.session_state.get(f"auth_{chave}"):
+        with st.sidebar:
+            if st.button("🔒 Sair", key=f"sair_{chave}"):
+                st.session_state[f"auth_{chave}"] = False
+                st.rerun()
+        return
+
+    st.title(titulo)
+    st.caption("🔒 Área protegida — digite a senha para acessar este painel.")
+    senha = st.text_input("Senha", type="password", key=f"pw_{chave}")
+    if st.button("Entrar", key=f"go_{chave}"):
+        if senha == str(senha_certa):
+            st.session_state[f"auth_{chave}"] = True
+            st.rerun()
+        else:
+            st.error("Senha incorreta. Tente novamente.")
+    st.stop()
+
+
 def montar_df(valores, mapa: dict, marcadores: list) -> pd.DataFrame:
     """Acha a linha de cabeçalho (que contém os 'marcadores') e devolve um DataFrame
     só com as colunas internas definidas em 'mapa' (chave normalizada -> nome interno)."""

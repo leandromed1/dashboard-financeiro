@@ -8,7 +8,7 @@ import plotly.express as px
 import streamlit as st
 
 from lib_comum import (
-    real_br, valor_para_numero, norm, ler_valores, montar_df,
+    real_br, valor_para_numero, norm, ler_valores, montar_df, proteger,
     COR_RECEITA, COR_DESPESA,
 )
 
@@ -63,6 +63,8 @@ def carregar() -> pd.DataFrame:
     df["tipo_de_cadastro"] = df["tipo_de_cadastro"].str.upper().str.strip()
     return df
 
+
+proteger("financeiro", "📊 Financeiro Léo")
 
 df = carregar()
 

@@ -5,7 +5,7 @@ import plotly.express as px
 import streamlit as st
 
 from lib_comum import (
-    real_br, valor_para_numero, norm, ler_valores, montar_df,
+    real_br, valor_para_numero, norm, ler_valores, montar_df, proteger,
     COR_DESPESA, COR_NEUTRA,
 )
 
@@ -64,6 +64,8 @@ def carregar_cadastro():
     except Exception:  # noqa: BLE001
         return {}
 
+
+proteger("obra", "🏗️ Obra Apto DN")
 
 df, erro = carregar()
 
