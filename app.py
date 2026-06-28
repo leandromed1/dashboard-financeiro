@@ -21,6 +21,9 @@ financeiro = st.Page(
 obra = st.Page(
     "paginas/obra.py", title="Obra Apto DN", icon="🏗️"
 )
+provisionamentos = st.Page(
+    "paginas/provisionamentos.py", title="Provisionamentos", icon="📅"
+)
 
-pg = st.navigation([financeiro, obra])
+pg = st.navigation([financeiro, obra, provisionamentos])
 pg.run()
