@@ -16,14 +16,18 @@ st.set_page_config(
 )
 
 financeiro = st.Page(
-    "paginas/financeiro.py", title="Financeiro Léo", icon="📊", default=True
-)
-obra = st.Page(
-    "paginas/obra.py", title="Obra Apto DN", icon="🏗️"
+    "paginas/financeiro.py", title="Visão geral", icon="📊", default=True
 )
 provisionamentos = st.Page(
     "paginas/provisionamentos.py", title="Provisionamentos", icon="📅"
 )
+obra = st.Page(
+    "paginas/obra.py", title="Visão geral", icon="🏗️"
+)
 
-pg = st.navigation([financeiro, obra, provisionamentos])
+# menu agrupado: Provisionamentos vira sub-aba do Financeiro Léo
+pg = st.navigation({
+    "Financeiro Léo": [financeiro, provisionamentos],
+    "Obra Apto DN": [obra],
+})
 pg.run()
