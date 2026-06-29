@@ -61,8 +61,8 @@ function enviarLembretes() {
   for (const email in porEmail) {
     const itens = porEmail[email];
     // Enviado como HTML (UTF-8) para os acentos saírem corretos.
-    let html = "<p>Olá, Léo!</p>" +
-               "<p>Estes lançamentos vencem nos próximos " + DIAS_ANTES + " dias:</p><ul>";
+    let html = "<p>Ol&aacute;, L&eacute;o!</p>" +
+               "<p>Estes lan&ccedil;amentos vencem nos pr&oacute;ximos " + DIAS_ANTES + " dias:</p><ul>";
     let totDesp = 0, totRec = 0;
     itens.forEach(function (it) {
       const quando = it.dias === 0 ? "vence <b>HOJE</b>" : "em " + it.dias + " dia(s)";
@@ -73,10 +73,10 @@ function enviarLembretes() {
     });
     html += "</ul>";
     html += "<p style=\"font-size:15px\">" +
-            "💰 <b>Total a pagar (precisa levantar): " + formataReais(totDesp) + "</b><br>" +
-            "📥 Total a receber: " + formataReais(totRec) + "<br>" +
-            "📊 Saldo previsto: " + formataReais(totRec - totDesp) + "</p>";
-    html += "<p style=\"color:#888\">Robô de Provisionamentos &middot; planilha 2026 - FINANCEIRO LEO</p>";
+            "&#128176; <b>Total a pagar (precisa levantar): " + formataReais(totDesp) + "</b><br>" +
+            "&#128229; Total a receber: " + formataReais(totRec) + "<br>" +
+            "&#128202; Saldo previsto: " + formataReais(totRec - totDesp) + "</p>";
+    html += "<p style=\"color:#888\">Rob&ocirc; de Provisionamentos &middot; planilha 2026 - FINANCEIRO LEO</p>";
 
     GmailApp.sendEmail(email, "Lembrete: lancamentos a vencer (" + itens.length + ")", "", {
       htmlBody: html,
