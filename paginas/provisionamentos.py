@@ -45,7 +45,8 @@ def carregar() -> pd.DataFrame:
     return df
 
 
-proteger("provisionamentos", "📅 Provisionamentos")
+# usa a MESMA senha (e login) da página Financeiro Léo
+proteger("financeiro", "📅 Provisionamentos")
 
 st.title("📅 Provisionamentos")
 st.caption("Fonte: aba [PROVISIONAMENTOS] · receitas e despesas previstas")
