@@ -2,6 +2,8 @@
 
 import os
 import sys
+import re
+import calendar
 import datetime
 
 import pandas as pd
@@ -26,6 +28,29 @@ MAPA = {
 }
 
 
+def _proxima_data(venc, hoje):
+    """Converte o vencimento em data:
+    - data completa (DD/MM/AAAA), p/ itens ÚNICA → essa data
+    - 'dia X', p/ itens MENSAL → próxima ocorrência (este mês se ainda não passou, senão o próximo)."""
+    s = str(venc).strip()
+    if not s:
+        return pd.NaT
+    m = re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", s)
+    if m:
+        return pd.to_datetime(m.group(0), dayfirst=True, errors="coerce")
+    md = re.search(r"\d{1,2}", s)
+    if md:
+        dia = int(md.group(0))
+        ano, mes = hoje.year, hoje.month
+        if dia < hoje.day:
+            mes += 1
+            if mes > 12:
+                mes, ano = 1, ano + 1
+        ultimo = calendar.monthrange(ano, mes)[1]
+        return pd.Timestamp(ano, mes, min(dia, ultimo))
+    return pd.NaT
+
+
 @st.cache_data(ttl=300)
 def carregar() -> pd.DataFrame:
     valores = ler_valores(SPREADSHEET_ID, ABA)  # levanta erro se falhar
@@ -33,7 +58,8 @@ def carregar() -> pd.DataFrame:
     df = df[(df["descricao"].str.strip() != "") | (df["valor"].str.strip() != "")].copy()
 
     df["valor_num"] = df["valor"].apply(valor_para_numero)
-    df["venc_dt"] = pd.to_datetime(df["vencimento"], format="%d/%m/%Y", errors="coerce")
+    hoje = datetime.date.today()
+    df["venc_dt"] = df["vencimento"].apply(lambda x: _proxima_data(x, hoje))
     df["tipo_n"] = df["tipo"].str.upper().str.strip()
     df["status_n"] = df["status"].str.upper().str.strip()
     df["aberto"] = ~df["status_n"].isin(["PAGO", "RECEBIDO", "CANCELADO"])
