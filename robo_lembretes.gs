@@ -51,8 +51,9 @@ function enviarLembretes() {
     const email = String(row[COL.email] || "").trim() || EMAIL_PADRAO;
     (porEmail[email] = porEmail[email] || []).push({
       linha: i + 1, desc: desc, tipo: String(row[COL.tipo] || ""),
-      valor: String(row[COL.valor] || ""), cat: String(row[COL.cat] || ""),
-      dias: dias, dueStr: dueStr
+      tipoLow: String(row[COL.tipo] || "").trim().toLowerCase(),
+      valor: String(row[COL.valor] || ""), valorNum: paraNumero(row[COL.valor]),
+      cat: String(row[COL.cat] || ""), dias: dias, dueStr: dueStr
     });
   }
 
@@ -61,13 +62,20 @@ function enviarLembretes() {
     // Enviado como HTML (UTF-8) para os acentos saírem corretos.
     let html = "<p>Olá, Léo!</p>" +
                "<p>Estes lançamentos vencem nos próximos " + DIAS_ANTES + " dias:</p><ul>";
+    let totDesp = 0, totRec = 0;
     itens.forEach(function (it) {
       const quando = it.dias === 0 ? "vence <b>HOJE</b>" : "em " + it.dias + " dia(s)";
       html += "<li><b>" + it.desc + "</b> (" + it.tipo + ") - " + it.valor +
               " - " + quando + " - vencimento " + it.dueStr +
               (it.cat ? " - " + it.cat : "") + "</li>";
+      if (it.tipoLow.indexOf("receita") >= 0) totRec += it.valorNum; else totDesp += it.valorNum;
     });
-    html += "</ul><p style=\"color:#888\">Robô de Provisionamentos &middot; planilha 2026 - FINANCEIRO LEO</p>";
+    html += "</ul>";
+    html += "<p style=\"font-size:15px\">" +
+            "💰 <b>Total a pagar (precisa levantar): " + formataReais(totDesp) + "</b><br>" +
+            "📥 Total a receber: " + formataReais(totRec) + "<br>" +
+            "📊 Saldo previsto: " + formataReais(totRec - totDesp) + "</p>";
+    html += "<p style=\"color:#888\">Robô de Provisionamentos &middot; planilha 2026 - FINANCEIRO LEO</p>";
 
     GmailApp.sendEmail(email, "Lembrete: lancamentos a vencer (" + itens.length + ")", "", {
       htmlBody: html,
@@ -102,6 +110,20 @@ function proximaData(venc, hoje) {
 }
 
 function ultimoDia(ano, mes) { return new Date(ano, mes + 1, 0).getDate(); }
+
+// "R$ 1.234,56" -> 1234.56
+function paraNumero(v) {
+  var s = String(v || "").replace("R$", "").replace(/\s/g, "").replace(/\./g, "").replace(",", ".").trim();
+  var n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+// 1234.56 -> "R$ 1.234,56"
+function formataReais(n) {
+  var s = (Math.round(n * 100) / 100).toFixed(2).split(".");
+  var inteiro = s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return "R$ " + inteiro + "," + s[1];
+}
 
 function formata(d) {
   const p = function (n) { return (n < 10 ? "0" : "") + n; };
