@@ -25,6 +25,7 @@ const EMAIL_PADRAO = "leandromedeirosarq@gmail.com";
 const COL = { desc:0, tipo:1, valor:2, venc:3, recor:4, cat:5, email:6, status:7, avisado:8, obs:9 };
 
 function enviarLembretes() {
+  reordenarPorDia(); // mantém a aba sempre em ordem de dia (receitas novas entram no lugar certo)
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ABA);
   const dados = sh.getDataRange().getValues();
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -128,6 +129,33 @@ function formataReais(n) {
 function formata(d) {
   const p = function (n) { return (n < 10 ? "0" : "") + n; };
   return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear();
+}
+
+// Reordena as linhas pela ordem do dia de vencimento (dia 1 -> 31).
+// Roda junto com o envio diário; pode também ser executada manualmente.
+function reordenarPorDia() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ABA);
+  const dados = sh.getDataRange().getValues();
+  if (dados.length <= 2) return;
+  const header = dados[0];
+  const origN = dados.length - 1;
+  let linhas = dados.slice(1).filter(function (r) {
+    return String(r[COL.desc] || "").trim() !== "" || String(r[COL.valor] || "").trim() !== "";
+  });
+  linhas.sort(function (a, b) { return diaDe(a[COL.venc]) - diaDe(b[COL.venc]); });
+  if (linhas.length > 0) sh.getRange(2, 1, linhas.length, header.length).setValues(linhas);
+  if (linhas.length < origN) {
+    sh.getRange(2 + linhas.length, 1, origN - linhas.length, header.length).clearContent();
+  }
+}
+
+function diaDe(venc) {
+  const s = String(venc || "").trim();
+  let m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m) return parseInt(m[1], 10);
+  m = s.match(/(\d{1,2})/);
+  if (m) return parseInt(m[1], 10);
+  return 999;
 }
 
 // Rode UMA vez para agendar o envio diário (08h).
