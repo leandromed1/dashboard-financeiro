@@ -88,6 +88,12 @@ function enviarLembretes() {
 
 // ÚNICA -> data fixa; MENSAL ("dia X") -> próxima ocorrência
 function proximaData(venc, hoje) {
+  // Se a célula for uma DATA real (ÚNICA), o Sheets devolve um objeto Date.
+  if (venc instanceof Date) {
+    const d = new Date(venc.getFullYear(), venc.getMonth(), venc.getDate());
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
   const s = String(venc || "").trim();
   if (!s) return null;
 
@@ -150,6 +156,7 @@ function reordenarPorDia() {
 }
 
 function diaDe(venc) {
+  if (venc instanceof Date) return venc.getDate();
   const s = String(venc || "").trim();
   let m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (m) return parseInt(m[1], 10);
