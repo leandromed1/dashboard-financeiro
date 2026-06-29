@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -85,7 +86,10 @@ except Exception as e:  # noqa: BLE001
 st.sidebar.header("🔎 Filtros")
 meses_disp = sorted(df.loc[df["ano_mes"] != "", "ano_mes"].unique())
 mapa_label = dict(zip(df["ano_mes"], df["mes_label"]))
-meses_sel = st.sidebar.multiselect("Mês", meses_disp, default=meses_disp,
+# por padrão abre no mês vigente (atualiza sozinho quando vira o mês)
+mes_atual = datetime.date.today().strftime("%Y-%m")
+default_meses = [mes_atual] if mes_atual in meses_disp else meses_disp
+meses_sel = st.sidebar.multiselect("Mês", meses_disp, default=default_meses,
                                    format_func=lambda x: mapa_label.get(x, x))
 tipos_disp = sorted(t for t in df["tipo_de_cadastro"].unique() if t)
 tipos_sel = st.sidebar.multiselect("Tipo", tipos_disp, default=tipos_disp)
