@@ -58,16 +58,21 @@ function enviarLembretes() {
 
   for (const email in porEmail) {
     const itens = porEmail[email];
-    let corpo = "Olá, Léo!\n\nEstes lançamentos vencem nos próximos " + DIAS_ANTES + " dias:\n\n";
+    // Enviado como HTML (UTF-8) para os acentos saírem corretos.
+    let html = "<p>Olá, Léo!</p>" +
+               "<p>Estes lançamentos vencem nos próximos " + DIAS_ANTES + " dias:</p><ul>";
     itens.forEach(function (it) {
-      const quando = it.dias === 0 ? "vence HOJE" : "em " + it.dias + " dia(s)";
-      corpo += "• " + it.desc + " (" + it.tipo + ") — " + it.valor +
-               " — " + quando + " — vencimento " + it.dueStr +
-               (it.cat ? " — " + it.cat : "") + "\n";
+      const quando = it.dias === 0 ? "vence <b>HOJE</b>" : "em " + it.dias + " dia(s)";
+      html += "<li><b>" + it.desc + "</b> (" + it.tipo + ") - " + it.valor +
+              " - " + quando + " - vencimento " + it.dueStr +
+              (it.cat ? " - " + it.cat : "") + "</li>";
     });
-    corpo += "\n— Robô de Provisionamentos (planilha 2026 - FINANCEIRO LEO)";
+    html += "</ul><p style=\"color:#888\">Robô de Provisionamentos &middot; planilha 2026 - FINANCEIRO LEO</p>";
 
-    GmailApp.sendEmail(email, "🔔 Lançamentos a vencer (" + itens.length + ")", corpo);
+    GmailApp.sendEmail(email, "Lembrete: lancamentos a vencer (" + itens.length + ")", "", {
+      htmlBody: html,
+      name: "Robo Provisionamentos"
+    });
     itens.forEach(function (it) { sh.getRange(it.linha, COL.avisado + 1).setValue(it.dueStr); });
   }
 }
