@@ -18,6 +18,28 @@ COR_NEUTRA = "#1565C0"    # azul
 
 
 # ----------------------------------------------------------------------------
+# Entidade (4 contas): deriva do "centro de custo"
+#   INSTITUTO | EMPRESA | PESSOAL | OUTROS NEGÓCIOS | A definir (custo fixo misto)
+# ----------------------------------------------------------------------------
+_ENTIDADE_MAP = {
+    "INSTITUTO": "INSTITUTO",
+    "LBTEC": "EMPRESA", "CM_ARQ": "EMPRESA", "PROJETOS": "EMPRESA", "RTS": "EMPRESA",
+    "LEANDRO PESSOAL": "PESSOAL", "DIVIDAS": "PESSOAL",
+    "SOGARAPAHOME": "OUTROS NEGÓCIOS", "NEGOCIOS A PARTE": "OUTROS NEGÓCIOS",
+    "CUSTO FIXO": "A definir",
+}
+
+
+def entidade_de(centro) -> str:
+    c = str(centro).strip().upper()
+    if c in _ENTIDADE_MAP:
+        return _ENTIDADE_MAP[c]
+    if c.startswith("OBRA"):   # qualquer obra -> empresa
+        return "EMPRESA"
+    return "A definir"
+
+
+# ----------------------------------------------------------------------------
 # Formatação / parsing (formato brasileiro)
 # ----------------------------------------------------------------------------
 def real_br(valor: float) -> str:
