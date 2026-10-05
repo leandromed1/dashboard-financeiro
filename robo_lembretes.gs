@@ -172,3 +172,136 @@ function criarGatilhoDiario() {
   });
   ScriptApp.newTrigger("enviarLembretes").timeBased().everyDays(1).atHour(8).create();
 }
+
+
+/* ====================================================================
+ *  RESUMO SEMANAL (domingo 20h) - panorama do mes por entidade + a vencer
+ * ==================================================================== */
+const ABA_LANC = "LANÇAMENTOS";                 // "LANÇAMENTOS" (escape p/ independer de encoding)
+const LINK_DASH = "https://dashboard-financeiro-beuwd6bvhjcmjcec5pq7ro.streamlit.app/";
+const MES3 = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+// colunas da LANCAMENTOS: caixa0 valor1 mes2 banco3 data4 freq5 centro6 tipo7 categoria8
+
+function entidadeDe(centro) {
+  var c = String(centro || "").trim().toUpperCase();
+  if (c === "INSTITUTO") return "Instituto";
+  if (["LBTEC", "CM_ARQ", "PROJETOS", "RTS"].indexOf(c) >= 0 || c.indexOf("OBRA") === 0) return "Empresa";
+  if (["LEANDRO PESSOAL", "DIVIDAS"].indexOf(c) >= 0) return "Pessoal";
+  if (["SOGARAPAHOME", "NEGOCIOS A PARTE"].indexOf(c) >= 0) return "Outros Negocios";
+  return "A definir";
+}
+
+function mesChaveDe(dataVal) {
+  if (dataVal instanceof Date) return dataVal.getFullYear() * 100 + (dataVal.getMonth() + 1);
+  var s = String(dataVal || "").trim();
+  var m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m) { var y = parseInt(m[3], 10); if (y < 100) y += 2000; return y * 100 + parseInt(m[2], 10); }
+  return 0;
+}
+
+function _kv(k, v, cor) {
+  return "<tr><td style=\"padding:3px 18px 3px 0\">" + k + "</td><td style=\"padding:3px 0;color:" +
+         (cor || "#222") + "\">" + v + "</td></tr>";
+}
+
+function resumoSemanal() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var hoje = new Date();
+  var mk = hoje.getFullYear() * 100 + (hoje.getMonth() + 1);
+  var nomeMes = MES3[hoje.getMonth()] + "/" + hoje.getFullYear();
+
+  // ---- LANCAMENTOS: mes vigente ----
+  var lanc = ss.getSheetByName(ABA_LANC).getDataRange().getValues();
+  var totRec = 0, totDesp = 0, recEnt = {}, despEnt = {}, despCat = {};
+  for (var i = 1; i < lanc.length; i++) {
+    var r = lanc[i];
+    if (!String(r[0] || "").trim() && !String(r[1] || "").trim()) continue;
+    if (mesChaveDe(r[4]) !== mk) continue;
+    var v = paraNumero(r[1]);
+    var tipo = String(r[7] || "").trim().toUpperCase();
+    var ent = entidadeDe(r[6]);
+    if (tipo === "RECEITA") { totRec += v; recEnt[ent] = (recEnt[ent] || 0) + v; }
+    else if (tipo === "DESPESA") {
+      totDesp += v; despEnt[ent] = (despEnt[ent] || 0) + v;
+      var cat = String(r[8] || "").replace(/^[^A-Za-zÀ-ÿ]+/, "").trim() || "(sem categoria)";
+      despCat[cat] = (despCat[cat] || 0) + v;
+    }
+  }
+  var saldoMes = totRec - totDesp;
+
+  // ---- PROVISIONAMENTOS: a vencer nos proximos 7 dias ----
+  var prov = ss.getSheetByName(ABA).getDataRange().getValues();
+  var h0 = new Date(); h0.setHours(0, 0, 0, 0);
+  var aPagar = 0, aReceber = 0, itens = [];
+  for (var j = 1; j < prov.length; j++) {
+    var p = prov[j];
+    if (!String(p[COL.desc] || "").trim()) continue;
+    var stt = String(p[COL.status] || "").trim().toUpperCase();
+    if (["PAGO", "RECEBIDO", "CANCELADO"].indexOf(stt) >= 0) continue;
+    var due = proximaData(p[COL.venc], h0);
+    if (!due) continue;
+    var dias = Math.round((due - h0) / 86400000);
+    if (dias < 0 || dias > 7) continue;
+    var val = paraNumero(p[COL.valor]);
+    if (String(p[COL.tipo] || "").toLowerCase().indexOf("receita") >= 0) aReceber += val; else aPagar += val;
+    itens.push({ desc: String(p[COL.desc]), tipo: String(p[COL.tipo]), valor: String(p[COL.valor]), dias: dias });
+  }
+
+  // ---- HTML ----
+  var ordem = ["Instituto", "Empresa", "Pessoal", "Outros Negocios", "A definir"];
+  var html = "<div style=\"font-family:Arial,sans-serif;max-width:640px;color:#222\">";
+  html += "<h2>&#128202; Resumo Financeiro &mdash; " + nomeMes + "</h2>";
+  html += "<p>Ol&aacute;, L&eacute;o! Panorama da semana:</p>";
+
+  html += "<h3>&#128197; M&ecirc;s vigente</h3><table style=\"border-collapse:collapse\">";
+  html += _kv("Receitas", formataReais(totRec), "#2E7D32");
+  html += _kv("Despesas", formataReais(totDesp), "#C62828");
+  html += _kv("<b>Saldo</b>", "<b>" + formataReais(saldoMes) + "</b>", saldoMes >= 0 ? "#2E7D32" : "#C62828");
+  html += "</table>";
+
+  html += "<h3>&#127970; Resultado por entidade (m&ecirc;s)</h3>";
+  html += "<table style=\"border-collapse:collapse\" border=\"1\" cellpadding=\"6\">";
+  html += "<tr style=\"background:#f2f2f2\"><th align=\"left\">Entidade</th><th align=\"right\">Receitas</th><th align=\"right\">Despesas</th><th align=\"right\">Resultado</th></tr>";
+  ordem.forEach(function (e) {
+    var rr = recEnt[e] || 0, dd = despEnt[e] || 0;
+    if (rr === 0 && dd === 0) return;
+    var res = rr - dd;
+    html += "<tr><td>" + e.replace("Negocios", "Neg&oacute;cios") + "</td><td align=\"right\">" + formataReais(rr) +
+            "</td><td align=\"right\">" + formataReais(dd) + "</td><td align=\"right\" style=\"color:" +
+            (res >= 0 ? "#2E7D32" : "#C62828") + "\"><b>" + formataReais(res) + "</b></td></tr>";
+  });
+  html += "</table>";
+
+  var cats = Object.keys(despCat).map(function (k) { return [k, despCat[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+  if (cats.length) {
+    html += "<h3>&#128184; Maiores gastos do m&ecirc;s</h3><ul>";
+    cats.slice(0, 5).forEach(function (c) { html += "<li>" + c[0] + " &mdash; " + formataReais(c[1]) + "</li>"; });
+    html += "</ul>";
+  }
+
+  html += "<h3>&#9203; A vencer nos pr&oacute;ximos 7 dias</h3>";
+  html += "<p>&#128184; A pagar: <b>" + formataReais(aPagar) + "</b> &nbsp;|&nbsp; &#128229; A receber: <b>" + formataReais(aReceber) + "</b></p>";
+  if (itens.length) {
+    html += "<ul>";
+    itens.sort(function (a, b) { return a.dias - b.dias; });
+    itens.forEach(function (it) {
+      var q = it.dias === 0 ? "hoje" : "em " + it.dias + "d";
+      html += "<li>" + it.desc + " (" + it.tipo + ") &mdash; " + it.valor + " &mdash; " + q + "</li>";
+    });
+    html += "</ul>";
+  }
+
+  html += "<p style=\"margin-top:20px\"><a href=\"" + LINK_DASH +
+          "\" style=\"background:#1565C0;color:#fff;padding:11px 18px;border-radius:6px;text-decoration:none;font-weight:bold\">&#128202; Abrir o dashboard completo</a></p>";
+  html += "<p style=\"color:#888;font-size:12px\">Resumo autom&aacute;tico &middot; planilha 2026 - FINANCEIRO LEO</p></div>";
+
+  GmailApp.sendEmail(EMAIL_PADRAO, "Resumo Financeiro semanal - " + nomeMes, "", { htmlBody: html, name: "Financeiro Leo" });
+}
+
+// Rode UMA vez para agendar o resumo semanal (domingo 20h).
+function criarGatilhoSemanal() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === "resumoSemanal") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("resumoSemanal").timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(20).create();
+}
