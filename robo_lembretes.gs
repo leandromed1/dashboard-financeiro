@@ -205,13 +205,30 @@ function _kv(k, v, cor) {
 }
 
 function resumoSemanal() {
+  try {
+    _resumoSemanalCore();
+  } catch (e) {
+    GmailApp.sendEmail(EMAIL_PADRAO, "Resumo semanal - ERRO (me mostra isto)",
+                       "O resumo semanal falhou. Mensagem:\n\n" + (e && e.stack ? e.stack : e));
+    throw e;
+  }
+}
+
+function _resumoSemanalCore() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var hoje = new Date();
   var mk = hoje.getFullYear() * 100 + (hoje.getMonth() + 1);
   var nomeMes = MES3[hoje.getMonth()] + "/" + hoje.getFullYear();
 
   // ---- LANCAMENTOS: mes vigente ----
-  var lanc = ss.getSheetByName(ABA_LANC).getDataRange().getValues();
+  var shLanc = ss.getSheetByName(ABA_LANC);
+  if (!shLanc) {
+    ss.getSheets().forEach(function (s) {
+      if (s.getName().toUpperCase().replace(/[^A-Z]/g, "") === "LANCAMENTOS") shLanc = s;
+    });
+  }
+  if (!shLanc) throw new Error("Aba LANCAMENTOS nao encontrada no arquivo.");
+  var lanc = shLanc.getDataRange().getValues();
   var totRec = 0, totDesp = 0, recEnt = {}, despEnt = {}, despCat = {};
   for (var i = 1; i < lanc.length; i++) {
     var r = lanc[i];
@@ -230,7 +247,9 @@ function resumoSemanal() {
   var saldoMes = totRec - totDesp;
 
   // ---- PROVISIONAMENTOS: a vencer nos proximos 7 dias ----
-  var prov = ss.getSheetByName(ABA).getDataRange().getValues();
+  var shProv = ss.getSheetByName(ABA);
+  if (!shProv) throw new Error("Aba PROVISIONAMENTOS nao encontrada.");
+  var prov = shProv.getDataRange().getValues();
   var h0 = new Date(); h0.setHours(0, 0, 0, 0);
   var aPagar = 0, aReceber = 0, itens = [];
   for (var j = 1; j < prov.length; j++) {
